@@ -1,8 +1,10 @@
+let transactions = []
+
 // funções auxiliares
 function createTransactionContainer(id) {
   const container = document.createElement('div');
   container.classList.add('transaction')
-  container.id(`transaction-${id}`)
+  container.id = `transaction-${id}`
   return container
 }
 
@@ -19,12 +21,10 @@ function createTransactionAmount(amount) {
   const formater = Intl.NumberFormat('pt-BR', {
     compactDisplay: 'long',
     currency: 'BRL',
-    style: 'currency'
+    style: 'currency',
   })
-
   const formatedAmount = formater.format(amount)
-
-  if (amount) {
+  if (amount > 0) {
     span.textContent = `${formatedAmount} C`
     span.classList.add('credit')
   } else {
@@ -38,16 +38,24 @@ function renderTransaction(transaction) {
   const container = createTransactionContainer(transaction.id)
   const title = createTransactionTitle(transaction.name)
   const amount = createTransactionAmount(transaction.amount)
+  const editBtn = createEditTransactionBtn(transaction)
+  const deleteBtn = createDeleteTransactionButton(transaction.id)
 
-  document.querySelector('#transaction').append(container)
-  container.append(title, amount)
+  container.append(title, amount, editBtn, deleteBtn)
+  document.querySelector('#transactions').append(container)
 }
 
 async function fetchTransaction() {
   return await fetch('http://localhost:3000/transactions').then(res => res.json())
 }
 
-let transactions = []
+async function setup() {
+  const results = await fetchTransaction()
+  transactions.push(...results)
+  transactions.forEach(renderTransaction)
+  updateBalance()
+}
+document.addEventListener('DOMContentLoaded', setup)
 
 function updateBalance() {
   const balanceSpan = document.querySelector('#balance')
@@ -57,17 +65,8 @@ function updateBalance() {
     currency: 'BRL',
     style: 'currency'
   })
-  balance.textContent = formater.format(balance)
+  balanceSpan.textContent = formater.format(balance)
 }
-
-async function setup() {
-  const results = await fetchTransaction()
-  transactions.push(...results)
-  transactions.forEach(renderTransaction)
-  updateBalance()
-}
-
-document.addEventListener('DOMContentLoaded', setup)
 
 async function savaTransaction(ev) {
   ev.preventDefault()
@@ -77,7 +76,7 @@ async function savaTransaction(ev) {
   const amount = parseFloat(document.querySelector('#amount').value)
 
   if (id) {
-    const response = await fetch('http://localhost:3000/transactions', {
+    const response = await fetch(`http://localhost:3000/transactions/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ name, amount }),
       headers: {
@@ -111,10 +110,6 @@ async function savaTransaction(ev) {
   updateBalance()
 }
 
-document.addEventListener('DOMContentLoaded', setup)
-document.querySelector('form').addEventListener('submit', savaTransaction)
-
-
 function createEditTransactionBtn(transaction) {
   const editBtn = document.createElement('button')
   editBtn.classList.add('edit-btn')
@@ -125,5 +120,24 @@ function createEditTransactionBtn(transaction) {
     document.querySelector('#amount').value = transaction.amount
   })
   return editBtn
-
 }
+
+function createDeleteTransactionButton(id) {
+  const deleteBtn = document.createElement('button')
+  deleteBtn.classList.add('delete-btn')
+  deleteBtn.textContent = 'Excluir'
+  deleteBtn.addEventListener('click', async () => {
+    await fetch(`http://localhost:3000/transactions/${id}`, { method: 'DELETE' })
+    deleteBtn.parentElement.remove()
+    const indexToRemove = transactions.findIndex((t) => t.id === id)
+    transactions.splice(indexToRemove, 1)
+    updateBalance()
+  })
+  return deleteBtn
+}
+
+
+document.addEventListener('DOMContentLoaded', setup)
+document.querySelector('form').addEventListener('submit', savaTransaction)
+
+
