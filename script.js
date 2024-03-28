@@ -42,3 +42,68 @@ function renderTransaction(transaction) {
   document.querySelector('#transaction').append(container)
   container.append(title, amount)
 }
+
+async function fetchTransaction() {
+  return await fetch('http://localhost:3000/transactions').then(res => res.json())
+}
+
+let transactions = []
+
+function updateBalance() {
+  const balanceSpan = document.querySelector('#balance')
+  const balance = transactions.reduce((sum, transaction) => sum + transaction.amount, 0)
+  const formater = Intl.NumberFormat('pt-BR', {
+    compactDisplay: 'long',
+    currency: 'BRL',
+    style: 'currency'
+  })
+  balance.textContent = formater.format(balance)
+}
+
+async function setup() {
+  const results = await fetchTransaction()
+  transactions.push(...results)
+  transactions.forEach(renderTransaction)
+  updateBalance()
+}
+
+document.addEventListener('DOMContentLoaded', setup)
+
+async function savaTransaction(ev) {
+  ev.preventDefault()
+
+  const name = document.querySelector('#name').value
+  const amount = parseFloat(document.querySelector('#amount').value)
+
+  const response = await fetch('http://localhost:3000/transactions', {
+    method: 'POST',
+    body: JSON.stringify({ name, amount }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+
+  const transaction = await response.json()
+  transactions.push(transaction)
+  renderTransaction(transaction)
+
+  ev.target.reset()
+  updateBalance()
+}
+
+document.addEventListener('DOMContentLoaded', setup)
+document.querySelector('form').addEventListener('submit', savaTransaction)
+
+
+function createEditTransactionBtn(transaction) {
+  const editBtn = document.createElement('button')
+  editBtn.classList.add('edit-btn')
+  editBtn.textContent = 'Editar'
+  editBtn.addEventListener('click', () => {
+    document.querySelector('#id').value = transaction.id
+    document.querySelector('#name').value = transaction.name
+    document.querySelector('#amount').value = transaction.amount
+  })
+  return editBtn
+
+}
